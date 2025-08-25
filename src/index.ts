@@ -61,18 +61,22 @@ async function scrapeFacultyOptions(browser: Browser) {
   return await download_from_selector(page,'#ui-id-1')
 }
 
-async function download_hug(browser: Browser,facultyData:FacultyData[]){
-  const first=facultyData[0]
-  const {id}=first
-  const page = await browser.newPage();
-  await page_goto(page,`https://shnaton.huji.ac.il/index.php/default/NextForm/2026/${id}`)
-  await click(page,'#chugInput')
-  const hugs=await download_from_selector(page,'#ui-id-2')
-  return {
-    ...first,hugs
-  }
-
-// Main execution
+async function download_all_hug(browser: Browser, facultyData: FacultyData[]): Promise<(FacultyData & { hugs: any })[]> {
+  const promises = facultyData.map(async (faculty) => {
+    const { id } = faculty;
+    const page = await browser.newPage();
+    await page_goto(page, `https://shnaton.huji.ac.il/index.php/default/NextForm/2026/${id}`);
+    await click(page, '#chugInput');
+    const hugs = await download_from_selector(page, '#ui-id-2');
+    await page.close();
+    
+    return {
+      ...faculty,
+      hugs
+    };
+  });
+  
+  return await Promise.all(promises);
 }
 async function main() {
   const browser = await puppeteer.launch({
@@ -87,7 +91,7 @@ async function main() {
     'data/faculty-options.json',
     JSON.stringify(facultyData, null, 2)
   );  
-  const hug_data=await download_hug(browser,facultyData)
+  const hug_data=await download_all_hug(browser,facultyData)
   await fs.writeFile(
     'data/hug_data.json',
     JSON.stringify(hug_data, null, 2)
