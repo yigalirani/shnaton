@@ -9,23 +9,30 @@ function extractTextAndNumber(input: string){
 interface FacultyData{
   id:number,
   text:string
-
 }
-async function click(page:Page,id:string){
-  // Wait for the faculty input element to be available
-  console.log('clicking...',id);
-  await page.waitForSelector(id, { timeout: 10000 });
-  await page.click(id);
-  await page.type(id, ' ');
+interface FacultyDataEx extends FacultyData{
+  departments: {
+        text: string;
+        id: number;
+    }[];
 }
-async function download_from_selector(page:Page,id:string){
-  await page.waitForSelector(id, {
+async function page_waitForSelector(page:Page,selector_id:string){
+  await page.waitForSelector(selector_id, {
     visible: true,
     timeout: 10000
   });
-
-  // Wait a bit more to ensure all options are loaded
+    // Wait a bit more to ensure all options are loaded
   await new Promise(resolve => setTimeout(resolve, 1000));
+}
+async function type_at_selector(page:Page,id:string,text:string){
+  // Wait for the faculty input element to be available
+  console.log(`typing... ${id} '${text}'`);
+  await page_waitForSelector(page,id);
+  await page.click(id);
+  await page.type(id, text);
+}
+async function download_from_selector(page:Page,id:string){
+  await page_waitForSelector(page,id)
 
   // Extract all items from the dropdown
   console.log('download_from_selector...',id);
@@ -37,12 +44,16 @@ async function download_from_selector(page:Page,id:string){
   },id)
   const ans=[]
   for (const item of items){
+    if (item==null)
+      continue
     const parsed=extractTextAndNumber(item)
     if (parsed!=null)
       ans.push(parsed)
   }
   return ans
 }
+
+
 async function page_goto(page:Page,url:string){
   console.log(url)
    await page.goto(url, {
@@ -57,27 +68,52 @@ async function scrapeFacultyOptions(browser: Browser) {
   // Navigate to the website
   console.log('Navigating to HUJI website...');
   await page_goto(page,'https://shnaton.huji.ac.il/')
-  await click(page,'#facultyInput')
+  await type_at_selector(page,'#facultyInput',' ')
   return await download_from_selector(page,'#ui-id-1')
 }
 
-async function download_all_hug(browser: Browser, facultyData: FacultyData[]): Promise<(FacultyData & { hugs: any })[]> {
+async function download_all_departments(browser: Browser, facultyData: FacultyData[]):Promise<FacultyDataEx[]>{
   const promises = facultyData.map(async (faculty) => {
     const { id } = faculty;
     const page = await browser.newPage();
     await page_goto(page, `https://shnaton.huji.ac.il/index.php/default/NextForm/2026/${id}`);
-    await click(page, '#chugInput');
-    const hugs = await download_from_selector(page, '#ui-id-2');
+    await type_at_selector(page, '#chugInput',' ');
+    const departments = await download_from_selector(page, '#ui-id-2');
     await page.close();
-    
     return {
       ...faculty,
-      hugs
+      departments
     };
   });
   
   return await Promise.all(promises);
 }
+async function download_cources_of_one_dept(browser:Browser,faculy_id:number,department_id:number){
+  const page = await browser.newPage();
+  await page_goto(page, `https://shnaton.huji.ac.il/index.php/default/NextForm/2026/${faculy_id}`)
+  type_at_selector(page, '#chugInput',department_id+'');
+  return {todo:'download_cources_of_one_dept'}
+}
+async function download_all_cources(browser:Browser,depts:FacultyDataEx[]){
+}
+async function fs_writeFile(filename:string,data:object){
+  const str=JSON.stringify(data, null, 2)
+  console.log('save ',filename,str.length,' chars')  
+  await fs.writeFile(filename,str)
+}
+async function download_department_data(browser:Browser):Promise<FacultyDataEx[]>{
+  const facultyData:FacultyData[] = await scrapeFacultyOptions(browser);
+  await fs_writeFile('data/faculty-options.json',facultyData)
+  const department_data=await download_all_departments(browser,facultyData)
+  await fs_writeFile('data/department_data.json',department_data)
+  return department_data
+}
+async function read_department_data(){
+  const ans = await fs.readFile('data/department_data.json','utf8')
+  const jsonans = JSON.parse(ans)
+  return jsonans as FacultyDataEx[]
+}
+
 async function main() {
   const browser = await puppeteer.launch({
     headless: true, // Set to true for headless mode
@@ -85,20 +121,10 @@ async function main() {
     args: ['--no-sandbox', '--disable-setuid-sandbox']
     
   });
-
-  const facultyData:FacultyData[] = await scrapeFacultyOptions(browser);
-  await fs.writeFile(
-    'data/faculty-options.json',
-    JSON.stringify(facultyData, null, 2)
-  );  
-  const hug_data=await download_all_hug(browser,facultyData)
-  await fs.writeFile(
-    'data/hug_data.json',
-    JSON.stringify(hug_data, null, 2)
-  ); 
-
-
-console.log('Results saved to faculty-options.json'); 
+  const depts=await download_department_data(browser)
+  //const depts=await read_department_data()
+  // /const cources=download_all_cources(browser,depts)
+  await fs_writeFile('data/department_data3.json',depts)
 }
 
 // Run the script
