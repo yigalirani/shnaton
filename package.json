@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "watch_build": "node --watch-path=./src build.mjs",
+    "watch_tsc": "tsc --watch",
+    "watch_eslint": "node --watch-path=./src --watch-path ./tools/eslint/eslint_config.mjs --watch-path build.mjs  ./run_eslint.mjs",
+    "watch_server": "node --watch dist/index.js"
+  },
+  "devDependencies": {
+    "globals": "^16.3.0",
+    "typescript": "5.8.3"
+  },
+  "dependencies": {
+    "puppeteer": "^24.17.0"
+  }
+}

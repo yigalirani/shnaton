@@ -1,0 +1,8 @@
+{
+  "typescript.tsdk": "node_modules\\typescript\\lib",
+  "eslint.nodePath": "tools\\eslint\\node_modules",
+  "eslint.options": {
+    "overrideConfigFile": ".\\tools\\eslint\\eslint_config.mjs"
+  },
+  "eslint.trace.server": "messages" 
+}
