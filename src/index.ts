@@ -100,7 +100,7 @@ async function do_post(url:string,post_data:string){
     const ans = await response.text();
     const end=Date.now();
     console.log(post_data,ans.length,end-start)
-    return ans
+    return ans 
   }catch(ex){
     console.log('attempt',attempt,":",(ex as Error).message)
   }
@@ -138,9 +138,26 @@ async function download_courses_of_one_dept(faculty_id: string, department_id: s
 function make_filename(faculty_id: string, department_id: string){
   return `data/${faculty_id}_${department_id}.html`
 }
+async function filecache(filename:string,func: () => Promise<string>){
+  try{
+    await utils.fd_read_file(filename)
+    return                      
+  }catch(ex){
+    try{
+      const content=await func()
+      utils.fs_write_file(filename,content)
+    }catch(ex){ 
+      return
+    }
+    return 
+  }
+
+}
 async function download_and_save_courses_of_one_dept(faculty_id: string, department_id: string) {
   const filename=make_filename(faculty_id,department_id)
-  try{
+  await filecache(filename,()=>download_courses_of_one_dept(faculty_id, department_id))
+}
+/*  try{
     await utils.fd_read_file(filename)
     return                      
   }catch(ex){
@@ -148,7 +165,7 @@ async function download_and_save_courses_of_one_dept(faculty_id: string, departm
     utils.fs_write_file(filename,content)
     return 
   }
-}
+}*/
 async function download_all_cources(browser:Browser,depts:FacultyDataEx[]){
 }
 
@@ -170,6 +187,37 @@ function arrayToTable<T extends Record<string, any>>(data: T[]): string {
  
  return `<table>${headerRow}${rows}</table>`;
 }
+function extractCyllabusLink(html:string) {
+  const $ = cheerio.load(html);
+  const aTag = $('.cyllabus-cource');
+
+  if (aTag.length === 0) {
+    return null; // Anchor tag not found
+  }
+
+  const hrefValue = aTag.attr('href');
+  if (!hrefValue || !hrefValue.startsWith("javascript:OpenUrl")) {
+    return null; // Href not in the expected format
+  }
+
+  // Use a regular expression to extract the first argument of the OpenUrl function.
+  // The expression looks for 'OpenUrl(' followed by a quote and captures the content until the next quote.
+  const regex = /OpenUrl\('([^']*)'/;
+  const match = hrefValue.match(regex);
+
+  if (match && match.length > 1) {
+    // The captured group [1] is the first argument, which contains the relative path.
+    return match[1];
+  }
+
+  return null; // No match found
+}
+async  function download_link(course_number:string,url:string){
+}
+function make_parsed_filename(filename: string): string {
+  const legs = filename.split('/')
+  return [legs[0],'parsed',legs[1]].join('/')
+}
 async function parse_file(filename:string){
   const html=await utils.fd_read_file(filename)
   const $=cheerio.load(html)
@@ -186,8 +234,8 @@ async function parse_file(filename:string){
     const sum=md5(text)
     const data_course_title =$x.find('.data-course-title').text()
     const course_number=$x.find('.course-number').text()
-    if (course_number==='67100')
-      console.log('67100',sum,html)
+    //if (course_number==='67100')
+    //  console.log('67100',sum,html)
     if (exists.has(sum)){
       //console.log('exists',data_course_title)
       dups++
@@ -198,13 +246,22 @@ async function parse_file(filename:string){
 
     const data_course_title_en =$x.find('.data-course-title-en')
     const not_held_this_year =$x.find('.not-held-this-year')
-    const row={i,data_course_title,course_number,data_course_title_en,not_held_this_year,html:`<pre>${html}</pre>`,sum}
+    const silabus_link=extractCyllabusLink(html)
+    if (silabus_link!=null)
+      filecache(`data/silabus/${course_number}.html`,()=>utils.fetch_string(`https://shnaton.huji.ac.il${silabus_link}`))
+    const row={i,silabus_link,data_course_title,course_number,data_course_title_en,not_held_this_year,html:`<pre>${html}</pre>`,sum}
     rows.push(row)//`<tr><td>${course_number}</td><td>${data_course_title}</td><td>${data_course_title_en}</td><td>${not_held_this_year}</td></tr>`) 
   }
   console.log({dups})
   const content=arrayToTable(rows)//`<table><tr><td>course_number</td><td>data_course_title</td><td>data_course_title_en</td><td>not_held_this_year</td></tr>${ans.join('\n')}</table>`
-  await utils.fs_write_file(filename+'.parsed.html',header+content)
+  await utils.fs_write_file(make_parsed_filename(filename),header+content)
 
+}
+async function parse_all_file(){
+  const data=await utils.fd_read_json_file<FacultyDataEx[]>('data/department_data.json')
+  for (const {id:faculty_id,departments} of data)
+    for (const {id:department_id} of departments)
+      await parse_file(make_filename(faculty_id,department_id))
 }
 async function read_and_save_all_courses(){
   const funcs=[]
@@ -236,7 +293,8 @@ async function main() {
   //await fs.writeFile('data/cs.html',cs)
   //await utils.fs_writeFile('data/department_data3.json',depts)
   //download_and_save_courses_of_one_dept('12','0521')
-  parse_file('data/12_0521.html')
+  //parse_file('data/12_0521.html')
+  parse_all_file()
 }
 
 // Run the script

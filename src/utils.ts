@@ -77,3 +77,9 @@ export async function fs_write_json_file(filename:string,data:object){
   await fs_write_file(filename,str)
 
 }
+export async function fetch_string(url:string){
+  const response = await fetch(url)
+  const ans = await response.text();
+  console.log('fetch_string',url,ans.length)
+  return ans
+}
