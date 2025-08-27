@@ -3,7 +3,9 @@ import * as fs from 'fs/promises';
 import puppeteer, { Browser,Page } from 'puppeteer';
 import * as utils from './utils'
 import * as cheerio from 'cheerio';
+import pLimit from 'p-limit';
 
+const limit = pLimit(5);
 interface FacultyData{
   id:string,
   text:string
@@ -59,8 +61,11 @@ async function download_courses_of_one_dept_puppeter(browser:Browser,faculty_id:
 }
 async function do_post(url:string,post_data:string){
     const start=Date.now();
+    
   for (let attempt=0;;attempt++)
   try{
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -71,7 +76,8 @@ async function do_post(url:string,post_data:string){
         'Connection': 'keep-alive',
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: post_data
+      body: post_data,
+      signal:controller.signal
     });  
     const ans = await response.text();
     const end=Date.now();
@@ -152,12 +158,13 @@ async function parse_file(filename:string){
 
 }
 async function read_and_save_all_courses(){
+  const funcs=[]
   const data=await utils.fd_read_json_file<FacultyDataEx[]>('data/department_data.json')
-  for (const {id:faculty_id,departments} of data){
+  for (const {id:faculty_id,departments} of data)
     for (const {id:department_id} of departments)
-      await download_and_save_courses_of_one_dept(faculty_id+'', department_id+'') 
+       funcs.push(limit(()=>download_and_save_courses_of_one_dept(faculty_id+'', department_id+'')))
 
-  }
+  await Promise.all(funcs);
 }
 async function download_and_save_department_data(browser:Browser){
     const depts=await download_department_data(browser)
