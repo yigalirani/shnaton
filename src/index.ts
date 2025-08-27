@@ -4,11 +4,29 @@ import puppeteer, { Browser,Page } from 'puppeteer';
 import * as utils from './utils'
 import * as cheerio from 'cheerio';
 import pLimit from 'p-limit';
-
+import { createHash } from 'node:crypto';
 const limit = pLimit(10);
+const header=`<html lang="he" dir="rtl">
+    <head>
+        <base href="https://shnaton.huji.ac.il/index.php">
+        <title>Shnaton</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="shortcut icon" href="img/favicon.ico" type="image/vnd.microsoft.icon" />
+        <link rel="stylesheet" href="css/screen.css" />
+        <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" />
+        <link rel="stylesheet" href="jAlert/jAlert.css" />
+        <link rel="stylesheet" href="css/custom.css" />
+        <link rel="stylesheet" href="jbility/css/jbility.css" />
+        <link href="css/print.css" media="print" rel="stylesheet" type="text/css" />
+    </head>
+`
 interface FacultyData{
   id:string,
   text:string
+}
+function md5(content:string) {
+  return createHash('md5').update(content).digest('hex');
 }
 interface FacultyDataEx extends FacultyData{
   departments: {
@@ -141,20 +159,51 @@ async function download_department_data(browser:Browser):Promise<FacultyDataEx[]
   await utils.fs_write_json_file('data/department_data.json',department_data)
   return department_data
 }
+function arrayToTable<T extends Record<string, any>>(data: T[]): string {
+ if (!data.length) return '<table></table>';
+ 
+ const headers = Object.keys(data[0]);
+ const headerRow = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+ const rows = data.map(row => 
+   `<tr>${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}</tr>`
+ ).join('');
+ 
+ return `<table>${headerRow}${rows}</table>`;
+}
 async function parse_file(filename:string){
   const html=await utils.fd_read_file(filename)
   const $=cheerio.load(html)
-  const ans=[]
+  const exists = new Set();
+  const rows=[]
+  let dups=0
+  let i=0
   for (const x of $('body').find('.card.medium')){
     const $x=$(x)
+    const text=$x.text().replace(/\s+/g, '');
+    const html=$x.html()
+    if (html==null)
+      continue
+    const sum=md5(text)
+    const data_course_title =$x.find('.data-course-title').text()
     const course_number=$x.find('.course-number').text()
-    const data_course_title =$x.find('.data-course-title')
+    if (course_number==='67100')
+      console.log('67100',sum,html)
+    if (exists.has(sum)){
+      //console.log('exists',data_course_title)
+      dups++
+      continue
+    }
+    i++
+    exists.add(sum)
+
     const data_course_title_en =$x.find('.data-course-title-en')
     const not_held_this_year =$x.find('.not-held-this-year')
-    ans.push(`<tr><td>${course_number}</td><td>${data_course_title}</td><td>${data_course_title_en}</td><td>${not_held_this_year}</td></tr>`) 
+    const row={i,data_course_title,course_number,data_course_title_en,not_held_this_year,html:`<pre>${html}</pre>`,sum}
+    rows.push(row)//`<tr><td>${course_number}</td><td>${data_course_title}</td><td>${data_course_title_en}</td><td>${not_held_this_year}</td></tr>`) 
   }
-  const content=`<table><tr><td>course_number</td><td>data_course_title</td><td>data_course_title_en</td><td>not_held_this_year</td></tr>${ans.join('\n')}</table>`
-  await utils.fs_write_file(filename+'.parsed.html',content)
+  console.log({dups})
+  const content=arrayToTable(rows)//`<table><tr><td>course_number</td><td>data_course_title</td><td>data_course_title_en</td><td>not_held_this_year</td></tr>${ans.join('\n')}</table>`
+  await utils.fs_write_file(filename+'.parsed.html',header+content)
 
 }
 async function read_and_save_all_courses(){
@@ -177,9 +226,9 @@ async function make_browser(){
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 }
-async function main() {
+async function main() { 
   //const browser = await make_browser()
-  await read_and_save_all_courses()
+  //await read_and_save_all_courses()
   //download_and_save_courses_of_one_dept('09','0432')
   //download_and_save_department_data(browser)
   //const depts=await download_department_data(browser)
@@ -187,8 +236,8 @@ async function main() {
   //await fs.writeFile('data/cs.html',cs)
   //await utils.fs_writeFile('data/department_data3.json',depts)
   //download_and_save_courses_of_one_dept('12','0521')
-  //parse_file('data/12_0521.html')
+  parse_file('data/12_0521.html')
 }
 
 // Run the script
-main();
+main()
