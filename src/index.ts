@@ -5,7 +5,7 @@ import * as utils from './utils'
 import * as cheerio from 'cheerio';
 import pLimit from 'p-limit';
 
-const limit = pLimit(5);
+const limit = pLimit(10);
 interface FacultyData{
   id:string,
   text:string
@@ -44,7 +44,7 @@ async function download_all_departments(browser: Browser, facultyData: FacultyDa
 async function download_courses_of_one_dept_puppeter(browser:Browser,faculty_id:number,department_id:number){
   const page = await browser.newPage();
   await utils.page_goto(page, `https://shnaton.huji.ac.il/index.php/default/NextForm/2026/${faculty_id}`)
-  const post_data = `year=2026&faculty=${faculty_id}&hug=${department_id}&maslul=0&peula=Advanced&starting=1&system=1&option=2&word=&course=&toar=1&shana=&coursetype=0&shiur=&language=`
+  const post_data = `year=2026&faculty=${faculty_id}&hug=${department_id}&maslul=0&peula=Advanced&starting=1&system=1&option=2&word=&course=&toar=&shana=&coursetype=0&shiur=&language=`
   const url = 'https://shnaton.huji.ac.il/index.php'
   //do the fetch inside the page and return the string
   const ans = await page.evaluate(async (url, postData) => {
@@ -65,7 +65,7 @@ async function do_post(url:string,post_data:string){
   for (let attempt=0;;attempt++)
   try{
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 10000);
+    const id = setTimeout(() => controller.abort(), 20000);
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -101,7 +101,7 @@ function strip_html(html:string) {
 async function download_courses_of_one_dept(faculty_id: string, department_id: string) {
   function calc_post_data(page:number){
     if (page===1)
-      return `year=2026&faculty=${faculty_id}&hug=${department_id}&maximum=10000maslul=0&peula=Advanced&starting=1&system=1&option=2&word=&course=&toar=1&shana=&coursetype=0&shiur=&language=`
+      return `year=2026&faculty=${faculty_id}&hug=${department_id}&maslul=0&peula=Advanced&starting=1&system=1&option=2&word=&course=&toar=&shana=&coursetype=0&shiur=&language=`
     return `peula=Advanced&year=2026&starting=${page}&maximun=30&total=14&metoda=&word=0&hug=${department_id}&maslul=0&faculty=${faculty_id}&nosafim=1&arg=ajax`
   }
   const url = 'https://shnaton.huji.ac.il/index.php'
@@ -162,7 +162,7 @@ async function read_and_save_all_courses(){
   const data=await utils.fd_read_json_file<FacultyDataEx[]>('data/department_data.json')
   for (const {id:faculty_id,departments} of data)
     for (const {id:department_id} of departments)
-       funcs.push(limit(()=>download_and_save_courses_of_one_dept(faculty_id+'', department_id+'')))
+       funcs.push(limit(()=>download_and_save_courses_of_one_dept(faculty_id, department_id)))
 
   await Promise.all(funcs);
 }
@@ -180,6 +180,7 @@ async function make_browser(){
 async function main() {
   //const browser = await make_browser()
   await read_and_save_all_courses()
+  //download_and_save_courses_of_one_dept('09','0432')
   //download_and_save_department_data(browser)
   //const depts=await download_department_data(browser)
   //const cs=await download_courses_of_one_dept('12','0521')
