@@ -4,7 +4,7 @@ function extractTextAndNumber(input: string){
   if (input==null)
     return null
   const match = input.match(/^(.*)\s*\((\d+)\)$/);
-  return match ? { text: match[1].trim(), id: parseInt(match[2], 10) } : null;
+  return match ? { text: match[1].trim(), id: match[2] } : null;
 }
 async function page_waitForSelector(page:Page,selector_id:string){
   await page.waitForSelector(selector_id, {
@@ -13,6 +13,15 @@ async function page_waitForSelector(page:Page,selector_id:string){
   });
     // Wait a bit more to ensure all options are loaded
   await new Promise(resolve => setTimeout(resolve, 1000));
+}
+export async function page_wait_and_click(page:Page,selector_id:string){
+  await page.waitForSelector(selector_id, {
+    visible: true,
+    timeout: 10000
+  });
+    // Wait a bit more to ensure all options are loaded
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  await page.click(selector_id)
 }
 export async function type_at_selector(page:Page,id:string,text:string){
   // Wait for the faculty input element to be available
@@ -49,14 +58,22 @@ export async function page_goto(page:Page,url:string){
     timeout: 30000
   });
 }
-
-export async function fd_read_file<T extends object>(){
-  const ans = await fs.readFile('data/department_data.json','utf8')
+export async function fd_read_file(filename:string){
+  const ans = await fs.readFile(filename,'utf8')
+  console.log('readfile:',filename,ans.length)
+  return ans
+}
+export async function fd_read_json_file<T extends object>(filename:string){
+  const ans = await fd_read_file(filename)
   const jsonans = JSON.parse(ans)
   return jsonans as T
 }
-export async function fs_writeFile(filename:string,data:object){
-  const str=JSON.stringify(data, null, 2)
+export async function fs_write_file(filename:string,str:string){
   console.log('save ',filename,str.length,' chars')  
   await fs.writeFile(filename,str)
+}
+export async function fs_write_json_file(filename:string,data:object){
+  const str=JSON.stringify(data, null, 2)
+  await fs_write_file(filename,str)
+
 }
