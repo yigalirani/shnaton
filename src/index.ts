@@ -5,7 +5,7 @@ import * as utils from './utils'
 import * as cheerio from 'cheerio';
 import pLimit from 'p-limit';
 import { createHash } from 'node:crypto';
-const limit = pLimit(10);
+const limit = pLimit(2);
 const header=`<html lang="he" dir="rtl">
     <head>
         <base href="https://shnaton.huji.ac.il/index.php">
@@ -174,12 +174,27 @@ function extractCyllabusLink(html:string) {
 }
 async  function download_link(course_number:string,url:string){
 }
+async function download_tocniot(course_number: string, faculty_id: string) {
+  const post_data = `peula=CourseD&detail=tochniot&course=${course_number}&year=2026&faculty=${faculty_id}`
+  const url = 'https://shnaton.huji.ac.il/index.php'
+  const content = await utils.do_post(url, post_data)
+  if (content == null)
+    throw 'failed to download tochniot for course ' + course_number
+  return content
+}
+async function download_all_tocniot() {
+  const data = await utils.fd_read_json_file<{course_number: string, faculty_id: string}[]>('data/course_data.json')
+  const funcs = data.map(({course_number, faculty_id}) => 
+    limit(() => utils.filecache(`data/tochniot/${course_number}.html`, () => download_tocniot(course_number, faculty_id)))
+  )
+  await Promise.all(funcs)
+}
 function make_parsed_filename(filename: string): string {
   const legs = filename.split('/')
   const ans= [legs[0],'parsed',legs[2]].join('/')
   return ans
 }
-async function parse_file(filename:string){
+async function parse_file(filename:string, faculty_id: string, course_data: {course_number: string, faculty_id: string}[]){
   const html=await utils.fd_read_file(filename)
   const $=cheerio.load(html)
   const exists = new Set();
@@ -210,6 +225,7 @@ async function parse_file(filename:string){
     const silabus_link=extractCyllabusLink(html)
     if (silabus_link!=null)
       utils.filecache(`data/silabus/${course_number}.html`,()=>utils.repeat_fetch(`https://shnaton.huji.ac.il${silabus_link}`))
+    course_data.push({course_number, faculty_id})
     const row={i,silabus_link,data_course_title,course_number,data_course_title_en,not_held_this_year,html:`<div class=card>${html}</div>`,sum}
     rows.push(row)//`<tr><td>${course_number}</td><td>${data_course_title}</td><td>${data_course_title_en}</td><td>${not_held_this_year}</td></tr>`) 
   }
@@ -220,9 +236,12 @@ async function parse_file(filename:string){
 }
 async function parse_all_file(){
   const data=await utils.fd_read_json_file<FacultyDataEx[]>('data/department_data.json')
+  const course_data: {course_number: string, faculty_id: string}[] = []
   for (const {id:faculty_id,departments} of data)
     for (const {id:department_id} of departments)
-      await parse_file(make_filename(faculty_id,department_id))
+      await parse_file(make_filename(faculty_id,department_id), faculty_id, course_data)
+  await utils.fs_write_json_file('data/course_data.json', course_data)
+
 }
 async function read_and_save_all_courses(){
   const funcs=[]
@@ -255,7 +274,8 @@ async function main() {
   //await utils.fs_writeFile('data/department_data3.json',depts)
   //download_and_save_courses_of_one_dept('12','0521')
   //parse_file('data/12_0521.html')
-  parse_all_file()
+  //parse_all_file()
+    await download_all_tocniot()
 }
 
 // Run the script
