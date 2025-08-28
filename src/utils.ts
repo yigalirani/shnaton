@@ -1,5 +1,6 @@
 import { Page } from 'puppeteer';
 import * as fs from 'fs/promises'; 
+import * as path from "path";
 function extractTextAndNumber(input: string){
   if (input==null)
     return null
@@ -143,3 +144,21 @@ export async function filecache(filename:string,func: () => Promise<string|undef
 
 }
 
+
+export async function createDirs() {
+  const dirs = [
+    "data",
+    "data/css",
+    "data/downloaded",
+    "data/kedem",
+    "data/parsed",
+    "data/silabus",
+    "data/tochniot",
+    "data/examDates",
+  ];
+
+  for (const dir of dirs) {
+    const fullPath = path.resolve(dir);
+    await fs.mkdir(fullPath, { recursive: true });
+  }
+}

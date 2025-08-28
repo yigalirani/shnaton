@@ -174,18 +174,18 @@ function extractCyllabusLink(html:string) {
 }
 async  function download_link(course_number:string,url:string){
 }
-async function download_tocniot(course_number: string, faculty_id: string) {
-  const post_data = `peula=CourseD&detail=tochniot&course=${course_number}&year=2026&faculty=${faculty_id}`
+async function download_tocniot(course_number: string, faculty_id: string, detail: string) {
+  const post_data = `peula=CourseD&detail=${detail}&course=${course_number}&year=2026&faculty=${faculty_id}`
   const url = 'https://shnaton.huji.ac.il/index.php'
   const content = await utils.do_post(url, post_data)
   if (content == null)
     throw 'failed to download tochniot for course ' + course_number
   return content
 }
-async function download_all_tocniot() {
+async function download_all_tocniot(detail: string) {
   const data = await utils.fd_read_json_file<{course_number: string, faculty_id: string}[]>('data/course_data.json')
   const funcs = data.map(({course_number, faculty_id}) => 
-    limit(() => utils.filecache(`data/tochniot/${course_number}.html`, () => download_tocniot(course_number, faculty_id)))
+    limit(() => utils.filecache(`data/${detail}/${course_number}.html`, () => download_tocniot(course_number, faculty_id, detail)))
   )
   await Promise.all(funcs)
 }
@@ -263,7 +263,8 @@ async function make_browser(){
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 }
-async function main() { 
+async function main() {
+  await utils.createDirs()
   //const browser = await make_browser()
   //await read_and_save_all_courses()
   //download_and_save_courses_of_one_dept('09','0432')
@@ -275,7 +276,10 @@ async function main() {
   //download_and_save_courses_of_one_dept('12','0521')
   //parse_file('data/12_0521.html')
   //parse_all_file()
-    await download_all_tocniot()
+  //await download_all_tocniot('kedem')
+  //await download_all_tocniot('tochniot')
+  await download_all_tocniot('examDates')
+
 }
 
 // Run the script
