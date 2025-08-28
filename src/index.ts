@@ -77,35 +77,7 @@ async function download_courses_of_one_dept_puppeter(browser:Browser,faculty_id:
   }, url, post_data); 
   return ans 
 }
-async function do_post(url:string,post_data:string){
-    const start=Date.now();
-    
-  for (let attempt=0;;attempt++)
-  try{
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 20000);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Accept-Encoding': 'gzip, deflate, br, zstd',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'max-age=0',
-        'Connection': 'keep-alive',
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: post_data,
-      signal:controller.signal
-    });  
-    const ans = await response.text();
-    const end=Date.now();
-    console.log(post_data,ans.length,end-start)
-    return ans 
-  }catch(ex){
-    console.log('attempt',attempt,":",(ex as Error).message)
-  }
 
-}
 function has_more(page:number,page_data:string){
   if (page===1)
     return page_data.includes('loaded_more')
@@ -126,7 +98,9 @@ async function download_courses_of_one_dept(faculty_id: string, department_id: s
   const ans=[]
   for (let page=1;;page++){
     const post_data=calc_post_data(page)
-    const page_data=await do_post(url,post_data)
+    const page_data=await utils.do_post(url,post_data)
+    if (page_data==null)
+      throw 'failed'+post_data
     ans.push(strip_html(page_data))
     const more=has_more(page,page_data)
     if (!more){
@@ -136,26 +110,12 @@ async function download_courses_of_one_dept(faculty_id: string, department_id: s
   }
 }
 function make_filename(faculty_id: string, department_id: string){
-  return `data/${faculty_id}_${department_id}.html`
+  return `data/downloaded/${faculty_id}_${department_id}.html`
 }
-async function filecache(filename:string,func: () => Promise<string>){
-  try{
-    await utils.fd_read_file(filename)
-    return                      
-  }catch(ex){
-    try{
-      const content=await func()
-      utils.fs_write_file(filename,content)
-    }catch(ex){ 
-      return
-    }
-    return 
-  }
 
-}
 async function download_and_save_courses_of_one_dept(faculty_id: string, department_id: string) {
   const filename=make_filename(faculty_id,department_id)
-  await filecache(filename,()=>download_courses_of_one_dept(faculty_id, department_id))
+  await utils.filecache(filename,()=>download_courses_of_one_dept(faculty_id, department_id))
 }
 /*  try{
     await utils.fd_read_file(filename)
@@ -216,7 +176,8 @@ async  function download_link(course_number:string,url:string){
 }
 function make_parsed_filename(filename: string): string {
   const legs = filename.split('/')
-  return [legs[0],'parsed',legs[1]].join('/')
+  const ans= [legs[0],'parsed',legs[2]].join('/')
+  return ans
 }
 async function parse_file(filename:string){
   const html=await utils.fd_read_file(filename)
@@ -248,8 +209,8 @@ async function parse_file(filename:string){
     const not_held_this_year =$x.find('.not-held-this-year')
     const silabus_link=extractCyllabusLink(html)
     if (silabus_link!=null)
-      filecache(`data/silabus/${course_number}.html`,()=>utils.fetch_string(`https://shnaton.huji.ac.il${silabus_link}`))
-    const row={i,silabus_link,data_course_title,course_number,data_course_title_en,not_held_this_year,html:`<pre>${html}</pre>`,sum}
+      utils.filecache(`data/silabus/${course_number}.html`,()=>utils.repeat_fetch(`https://shnaton.huji.ac.il${silabus_link}`))
+    const row={i,silabus_link,data_course_title,course_number,data_course_title_en,not_held_this_year,html:`<div class=card>${html}</div>`,sum}
     rows.push(row)//`<tr><td>${course_number}</td><td>${data_course_title}</td><td>${data_course_title_en}</td><td>${not_held_this_year}</td></tr>`) 
   }
   console.log({dups})

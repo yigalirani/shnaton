@@ -77,9 +77,69 @@ export async function fs_write_json_file(filename:string,data:object){
   await fs_write_file(filename,str)
 
 }
-export async function fetch_string(url:string){
-  const response = await fetch(url)
-  const ans = await response.text();
-  console.log('fetch_string',url,ans.length)
-  return ans
+interface RequestInitEx extends RequestInit{
+   dbgline:string
+   timeout:number
 }
+export async function repeat_fetch(
+  input: RequestInfo | URL, 
+  init?: RequestInitEx
+
+): Promise<string|undefined> {
+ const start=Date.now();
+  const { timeout = undefined, dbgline = input.toString() } = init || {};
+  for (let attempt=0;;attempt++)
+  try{
+    const controller = new AbortController();
+    const {signal}=controller
+    if (timeout!=null)
+      setTimeout(() => controller.abort(), timeout);
+    const response = await fetch(input,{...init,signal})
+    if (!response.ok){
+      console.warn(dbgline,'bad response status:',response.status)
+      return
+    }
+    const ans = await response.text();
+    const end=Date.now();
+    console.log(dbgline,ans.length,end-start)
+    return ans 
+  }catch(ex){
+    console.log('attempt',attempt,":",(ex as Error).message,dbgline)
+  }
+}
+
+
+export async function do_post(url:string,post_data:string,timeout=10000){
+    return await repeat_fetch(url, {
+      method: 'POST',
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'max-age=0',
+        'Connection': 'keep-alive',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: post_data,
+    timeout,
+    dbgline:post_data
+  })
+}
+export async function filecache(filename:string,func: () => Promise<string|undefined>){
+  try{
+    await fd_read_file(filename)
+    return                      
+  }catch(_ex){
+    console.debug(`Cache miss for ${filename}:`);
+  }
+  try{
+    const content=await func()
+    if (content==null)
+      return //already warned
+    fs_write_file(filename,content)
+  }catch(_ex){ 
+    console.warn(`file write error for  ${filename}:`);
+  }
+
+}
+
