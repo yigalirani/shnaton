@@ -35,8 +35,14 @@ interface FacultyDataEx extends FacultyData{
 interface Course{
   cid:string//cource number
   fid:string//faculty id
+  did:string //department ids
   ct:string//cource title
   cte:string//cource title english
+  h:number//held this year 0 yes 1 no
+  s:string//additional-data-semester
+  pt:number//additional-data-points
+  spt:number//additional-data-student-points
+  tst:string//additional-data-test
 }
 async function scrapeFacultyOptions(browser: Browser) {
   const page = await browser.newPage();
@@ -169,7 +175,8 @@ function make_parsed_filename(filename: string): string {
   const ans= [legs[0],'parsed',legs[2]].join('/')
   return ans
 }
-async function parse_file(filename:string, faculty_id: string, course_data: Course[]){
+async function parse_file(department_id:string, faculty_id: string, course_data: Course[]){
+  const filename=make_filename(faculty_id,department_id)
   const html=await utils.fd_read_file(filename)
   const $=cheerio.load(html)
   const exists = new Set();
@@ -194,10 +201,25 @@ async function parse_file(filename:string, faculty_id: string, course_data: Cour
 
     const data_course_title_en =$x.find('.data-course-title-en').text()
     const not_held_this_year =$x.find('.not-held-this-year')
+    const h=not_held_this_year.text()?0:1
     const silabus_link=extractCyllabusLink(html)
     if (silabus_link!=null)
       await utils.filecache(`data/silabus/${course_number}.html`,()=>utils.repeat_fetch(`https://shnaton.huji.ac.il${silabus_link}`))
-    course_data.push({cid:course_number, fid:faculty_id,ct:data_course_title,cte:data_course_title_en})
+    function g(cls:string):string{
+      return $x.find(`.${cls}`).text()
+    }
+    course_data.push({
+      did:department_id,
+      cid:course_number, 
+      fid:faculty_id,
+      ct:data_course_title,
+      cte:data_course_title_en,
+      s:g('additional-data-semester').replace(/'|"/g,''),
+      pt:parseFloat(g('additional-data-points')),
+      spt:parseFloat(g('additional-data-student-points')),
+      tst:g('additional-data-test'),
+      h
+    })
     const row={i,silabus_link,data_course_title,course_number,data_course_title_en,not_held_this_year,html:`<div class=card>${html}</div>`,sum}
     rows.push(row)//`<tr><td>${course_number}</td><td>${data_course_title}</td><td>${data_course_title_en}</td><td>${not_held_this_year}</td></tr>`) 
   }
@@ -206,13 +228,17 @@ async function parse_file(filename:string, faculty_id: string, course_data: Cour
   await utils.fs_write_file(make_parsed_filename(filename),header+content)
 
 }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 async function parse_all_file(){
   const data=await utils.fd_read_json_file<FacultyDataEx[]>('data/department_data.json')
   const course_data: Course[] = []
-  for (const {id:faculty_id,departments} of data)
+  for (const {id:faculty_id,departments} of data){
+    if (faculty_id!=='12')
+      continue
     for (const {id:department_id} of departments)
-      await parse_file(make_filename(faculty_id,department_id), faculty_id, course_data)
+      await parse_file(department_id, faculty_id, course_data)
+    
+  }
   await utils.fs_write_json_file('data/course_data.json', course_data)
 }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
