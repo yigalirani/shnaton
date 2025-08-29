@@ -1,4 +1,5 @@
 import puppeteer,{ Page } from 'puppeteer';
+import * as cheerio from 'cheerio';
 import * as fs from 'fs/promises'; 
 import * as path from "path";
 function extractTextAndNumber(input: string){
@@ -168,4 +169,19 @@ export async function make_browser(){
     defaultViewport: null,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
+}
+export function strip_html(html:string) {
+    const $ = cheerio.load(html);
+    $('script').remove();
+    return $('body').html();
+}
+export function arrayToTable<T extends Record<string, any>>(data: T[]): string {
+ if (!data.length) return '<table></table>';
+ 
+ const headers = Object.keys(data[0]);
+ const headerRow = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+ const rows = data.map(row => 
+   `<tr>${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}</tr>`
+ ).join('');
+ return `<table>${headerRow}${rows}</table>`;
 }

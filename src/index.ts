@@ -57,7 +57,8 @@ async function download_all_departments(browser: Browser, facultyData: FacultyDa
   return await Promise.all(promises);
 }
 
-async function _download_courses_of_one_dept_puppeter(browser:Browser,faculty_id:number,department_id:number){
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function download_courses_of_one_dept_puppeter(browser:Browser,faculty_id:number,department_id:number){
   const page = await browser.newPage();
   await utils.page_goto(page, `https://shnaton.huji.ac.il/index.php/default/NextForm/2026/${faculty_id}`)
   const post_data = `year=2026&faculty=${faculty_id}&hug=${department_id}&maslul=0&peula=Advanced&starting=1&system=1&option=2&word=&course=&toar=&shana=&coursetype=0&shiur=&language=`
@@ -81,11 +82,7 @@ function has_more(page:number,page_data:string){
     return page_data.includes('loaded_more')
   return !page_data.includes(`$('#load_more').hide();`)
 }
-function strip_html(html:string) {
-    const $ = cheerio.load(html);
-    $('script').remove();
-    return $('body').html();
-}
+
 async function download_courses_of_one_dept(faculty_id: string, department_id: string) {
   function calc_post_data(page:number){
     if (page===1)
@@ -99,7 +96,7 @@ async function download_courses_of_one_dept(faculty_id: string, department_id: s
     const page_data=await utils.do_post(url,post_data)
     if (page_data==null)
       throw 'failed'+post_data
-    ans.push(strip_html(page_data))
+    ans.push(utils.strip_html(page_data))
     const more=has_more(page,page_data)
     if (!more){
       console.log('no more,page=',page)
@@ -121,17 +118,7 @@ async function download_department_data(browser:Browser):Promise<FacultyDataEx[]
   await utils.fs_write_json_file('data/department_data.json',department_data)
   return department_data
 }
-function arrayToTable<T extends Record<string, any>>(data: T[]): string {
- if (!data.length) return '<table></table>';
- 
- const headers = Object.keys(data[0]);
- const headerRow = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
- const rows = data.map(row => 
-   `<tr>${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}</tr>`
- ).join('');
- 
- return `<table>${headerRow}${rows}</table>`;
-}
+
 function extractCyllabusLink(html:string) {
   const $ = cheerio.load(html);
   const aTag = $('.cyllabus-cource');
@@ -154,7 +141,6 @@ function extractCyllabusLink(html:string) {
     // The captured group [1] is the first argument, which contains the relative path.
     return match[1];
   }
-
   return null; // No match found
 }
 async function download_tocniot(course_number: string, faculty_id: string, detail: string) {
@@ -193,10 +179,7 @@ async function parse_file(filename:string, faculty_id: string, course_data: {cou
     const sum=md5(text)
     const data_course_title =$x.find('.data-course-title').text()
     const course_number=$x.find('.course-number').text()
-    //if (course_number==='67100')
-    //  console.log('67100',sum,html)
     if (exists.has(sum)){
-      //console.log('exists',data_course_title)
       dups++
       continue
     }
@@ -213,7 +196,7 @@ async function parse_file(filename:string, faculty_id: string, course_data: {cou
     rows.push(row)//`<tr><td>${course_number}</td><td>${data_course_title}</td><td>${data_course_title_en}</td><td>${not_held_this_year}</td></tr>`) 
   }
   console.log({dups})
-  const content=arrayToTable(rows)//`<table><tr><td>course_number</td><td>data_course_title</td><td>data_course_title_en</td><td>not_held_this_year</td></tr>${ans.join('\n')}</table>`
+  const content=utils.arrayToTable(rows)//`<table><tr><td>course_number</td><td>data_course_title</td><td>data_course_title_en</td><td>not_held_this_year</td></tr>${ans.join('\n')}</table>`
   await utils.fs_write_file(make_parsed_filename(filename),header+content)
 
 }
