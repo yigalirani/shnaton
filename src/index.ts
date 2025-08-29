@@ -32,7 +32,12 @@ interface FacultyDataEx extends FacultyData{
         id: string;
     }[];
 }
-
+interface Course{
+  cid:string//cource number
+  fid:string//faculty id
+  ct:string//cource title
+  cte:string//cource title english
+}
 async function scrapeFacultyOptions(browser: Browser) {
   const page = await browser.newPage();
   await utils.page_goto(page,'https://shnaton.huji.ac.il/')
@@ -164,7 +169,7 @@ function make_parsed_filename(filename: string): string {
   const ans= [legs[0],'parsed',legs[2]].join('/')
   return ans
 }
-async function parse_file(filename:string, faculty_id: string, course_data: {course_number: string, faculty_id: string}[]){
+async function parse_file(filename:string, faculty_id: string, course_data: Course[]){
   const html=await utils.fd_read_file(filename)
   const $=cheerio.load(html)
   const exists = new Set();
@@ -187,12 +192,12 @@ async function parse_file(filename:string, faculty_id: string, course_data: {cou
     i++
     exists.add(sum)
 
-    const data_course_title_en =$x.find('.data-course-title-en')
+    const data_course_title_en =$x.find('.data-course-title-en').text()
     const not_held_this_year =$x.find('.not-held-this-year')
     const silabus_link=extractCyllabusLink(html)
     if (silabus_link!=null)
       await utils.filecache(`data/silabus/${course_number}.html`,()=>utils.repeat_fetch(`https://shnaton.huji.ac.il${silabus_link}`))
-    course_data.push({course_number, faculty_id})
+    course_data.push({cid:course_number, fid:faculty_id,ct:data_course_title,cte:data_course_title_en})
     const row={i,silabus_link,data_course_title,course_number,data_course_title_en,not_held_this_year,html:`<div class=card>${html}</div>`,sum}
     rows.push(row)//`<tr><td>${course_number}</td><td>${data_course_title}</td><td>${data_course_title_en}</td><td>${not_held_this_year}</td></tr>`) 
   }
@@ -204,7 +209,7 @@ async function parse_file(filename:string, faculty_id: string, course_data: {cou
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function parse_all_file(){
   const data=await utils.fd_read_json_file<FacultyDataEx[]>('data/department_data.json')
-  const course_data: {course_number: string, faculty_id: string}[] = []
+  const course_data: Course[] = []
   for (const {id:faculty_id,departments} of data)
     for (const {id:department_id} of departments)
       await parse_file(make_filename(faculty_id,department_id), faculty_id, course_data)
@@ -239,7 +244,7 @@ async function main() {
   //download_and_save_courses_of_one_dept('12','0521')
   //parse_file('data/12_0521.html')
   //parse_file('data/01_0115.html')
-  //parse_all_file()
+  await parse_all_file()
   //await download_all_tocniot('kedem')
   //await download_all_tocniot('tochniot')
   //await download_all_tocniot('examDates')
