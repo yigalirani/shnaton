@@ -4,9 +4,19 @@ import importX from 'eslint-plugin-import-x';
 import globals from 'globals';
 import { defineConfig, globalIgnores } from "eslint/config";
 export default defineConfig(
-  globalIgnores(["**/dist/", "types/", '**/tmp2/', '**/tmp/', '**/unused_code/', '**/old', '**/converter_old/', '**/try/']),
+  globalIgnores(["**/dist/", "types/", '**/tmp2/', '**/tmp/', '**/unused_code/', '**/old', '**/converter_old/', '**/try/', "**/data/", "**/node_modules/", "**/*.json", "**/*.xml", "**/*.zip", "**/*.css"]),
   eslint.configs.recommended, //taking all rules from eslint, truning select ones off below
   tseslint.configs.recommended,
+  tseslint.configs.recommendedTypeChecked,
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: '../..'
+      },
+    },
+  },
   {
     plugins: {
       'import-x': importX,
@@ -28,6 +38,7 @@ export default defineConfig(
           "ignoreTypeReferences": false
         }
       ],
+      "@typescript-eslint/only-throw-error":"off",
       //more than recomended
       "no-duplicate-imports":"warn",
       "max-params":"warn",

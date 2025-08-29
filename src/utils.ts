@@ -67,8 +67,7 @@ export async function fd_read_file(filename:string){
 }
 export async function fd_read_json_file<T extends object>(filename:string){
   const ans = await fd_read_file(filename)
-  const jsonans = JSON.parse(ans)
-  return jsonans as T
+  return JSON.parse(ans) as T
 }
 export async function fs_write_file(filename:string,str:string){
   console.log('save ',filename,str.length,' chars')  
@@ -138,7 +137,7 @@ export async function filecache(filename:string,func: () => Promise<string|undef
     const content=await func()
     if (content==null)
       return //already warned
-    fs_write_file(filename,content)
+    await fs_write_file(filename,content)
   }catch(_ex){ 
     console.warn(`file write error for  ${filename}:`);
   }

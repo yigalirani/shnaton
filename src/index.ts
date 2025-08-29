@@ -151,6 +151,7 @@ async function download_tocniot(course_number: string, faculty_id: string, detai
     throw 'failed to download tochniot for course ' + course_number
   return content
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function download_all_tocniot(detail: string) {
   const data = await utils.fd_read_json_file<{course_number: string, faculty_id: string}[]>('data/course_data.json')
   const funcs = data.map(({course_number, faculty_id}) => 
@@ -190,7 +191,7 @@ async function parse_file(filename:string, faculty_id: string, course_data: {cou
     const not_held_this_year =$x.find('.not-held-this-year')
     const silabus_link=extractCyllabusLink(html)
     if (silabus_link!=null)
-      utils.filecache(`data/silabus/${course_number}.html`,()=>utils.repeat_fetch(`https://shnaton.huji.ac.il${silabus_link}`))
+      await utils.filecache(`data/silabus/${course_number}.html`,()=>utils.repeat_fetch(`https://shnaton.huji.ac.il${silabus_link}`))
     course_data.push({course_number, faculty_id})
     const row={i,silabus_link,data_course_title,course_number,data_course_title_en,not_held_this_year,html:`<div class=card>${html}</div>`,sum}
     rows.push(row)//`<tr><td>${course_number}</td><td>${data_course_title}</td><td>${data_course_title_en}</td><td>${not_held_this_year}</td></tr>`) 
@@ -241,9 +242,10 @@ async function main() {
   //parse_all_file()
   //await download_all_tocniot('kedem')
   //await download_all_tocniot('tochniot')
-  await download_all_tocniot('examDates')
+  //await download_all_tocniot('examDates')
 
 }
 
 // Run the script
+// eslint-disable-next-line @typescript-eslint/no-floating-promises
 main()

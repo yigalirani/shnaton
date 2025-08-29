@@ -14,5 +14,5 @@
     "module": "nodenext",
     "allowUnreachableCode":false
   },
-  "include":["src/**/*"]  
+  "include":["src/**/*","tools/eslint/eslint_config.mjs"]  
 }
