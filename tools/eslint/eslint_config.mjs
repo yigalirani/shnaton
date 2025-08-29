@@ -29,6 +29,7 @@ export default defineConfig(
         }
       ],
       //more than recomended
+      "no-duplicate-imports":"warn",
       "max-params":"warn",
       "complexity":"warn",
       "eqeqeq": ["error", "always", { "null": "ignore" }],

@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import * as fs from 'fs/promises'; 
-import puppeteer, { Browser,Page } from 'puppeteer';
+import { Browser } from 'puppeteer';
 import * as utils from './utils'
 import * as cheerio from 'cheerio';
 import pLimit from 'p-limit';
@@ -59,7 +57,7 @@ async function download_all_departments(browser: Browser, facultyData: FacultyDa
   return await Promise.all(promises);
 }
 
-async function download_courses_of_one_dept_puppeter(browser:Browser,faculty_id:number,department_id:number){
+async function _download_courses_of_one_dept_puppeter(browser:Browser,faculty_id:number,department_id:number){
   const page = await browser.newPage();
   await utils.page_goto(page, `https://shnaton.huji.ac.il/index.php/default/NextForm/2026/${faculty_id}`)
   const post_data = `year=2026&faculty=${faculty_id}&hug=${department_id}&maslul=0&peula=Advanced&starting=1&system=1&option=2&word=&course=&toar=&shana=&coursetype=0&shiur=&language=`
@@ -112,23 +110,10 @@ async function download_courses_of_one_dept(faculty_id: string, department_id: s
 function make_filename(faculty_id: string, department_id: string){
   return `data/downloaded/${faculty_id}_${department_id}.html`
 }
-
 async function download_and_save_courses_of_one_dept(faculty_id: string, department_id: string) {
   const filename=make_filename(faculty_id,department_id)
   await utils.filecache(filename,()=>download_courses_of_one_dept(faculty_id, department_id))
 }
-/*  try{
-    await utils.fd_read_file(filename)
-    return                      
-  }catch(ex){
-    const content=await download_courses_of_one_dept(faculty_id, department_id)
-    utils.fs_write_file(filename,content)
-    return 
-  }
-}*/
-async function download_all_cources(browser:Browser,depts:FacultyDataEx[]){
-}
-
 async function download_department_data(browser:Browser):Promise<FacultyDataEx[]>{
   const facultyData:FacultyData[] = await scrapeFacultyOptions(browser);
   await utils.fs_write_json_file('data/faculty-options.json',facultyData)
@@ -171,8 +156,6 @@ function extractCyllabusLink(html:string) {
   }
 
   return null; // No match found
-}
-async  function download_link(course_number:string,url:string){
 }
 async function download_tocniot(course_number: string, faculty_id: string, detail: string) {
   const post_data = `peula=CourseD&detail=${detail}&course=${course_number}&year=2026&faculty=${faculty_id}`
@@ -234,6 +217,7 @@ async function parse_file(filename:string, faculty_id: string, course_data: {cou
   await utils.fs_write_file(make_parsed_filename(filename),header+content)
 
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function parse_all_file(){
   const data=await utils.fd_read_json_file<FacultyDataEx[]>('data/department_data.json')
   const course_data: {course_number: string, faculty_id: string}[] = []
@@ -241,8 +225,8 @@ async function parse_all_file(){
     for (const {id:department_id} of departments)
       await parse_file(make_filename(faculty_id,department_id), faculty_id, course_data)
   await utils.fs_write_json_file('data/course_data.json', course_data)
-
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function read_and_save_all_courses(){
   const funcs=[]
   const data=await utils.fd_read_json_file<FacultyDataEx[]>('data/department_data.json')
@@ -252,17 +236,12 @@ async function read_and_save_all_courses(){
 
   await Promise.all(funcs);
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function download_and_save_department_data(browser:Browser){
     const depts=await download_department_data(browser)
     await utils.fs_write_json_file('data/department_data.json',depts)
 }
-async function make_browser(){
-   return await puppeteer.launch({
-    headless: false, // Set to true for headless mode
-    defaultViewport: null,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-}
+
 async function main() {
   await utils.createDirs()
   //const browser = await make_browser()
@@ -275,6 +254,7 @@ async function main() {
   //await utils.fs_writeFile('data/department_data3.json',depts)
   //download_and_save_courses_of_one_dept('12','0521')
   //parse_file('data/12_0521.html')
+  //parse_file('data/01_0115.html')
   //parse_all_file()
   //await download_all_tocniot('kedem')
   //await download_all_tocniot('tochniot')

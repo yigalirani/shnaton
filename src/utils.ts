@@ -1,4 +1,4 @@
-import { Page } from 'puppeteer';
+import puppeteer,{ Page } from 'puppeteer';
 import * as fs from 'fs/promises'; 
 import * as path from "path";
 function extractTextAndNumber(input: string){
@@ -161,4 +161,11 @@ export async function createDirs() {
     const fullPath = path.resolve(dir);
     await fs.mkdir(fullPath, { recursive: true });
   }
+}
+export async function make_browser(){
+   return await puppeteer.launch({
+    headless: false, // Set to true for headless mode
+    defaultViewport: null,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
 }
